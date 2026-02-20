@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treino Gabriel - Oficial</title>
+    <!-- Configurações de PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00a3ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <link href="https://fonts.googleapis.com" rel="stylesheet">
+    <style>
+        :root { --bg: #080a0c; --card: #111418; --accent: #00a3ff; --text: #ffffff; --text-dim: #8b949e; --border: #21262d; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 480px; padding-bottom: 40px; }
+        .timer-header { position: sticky; top: 10px; z-index: 100; background: rgba(17, 20, 24, 0.95); backdrop-filter: blur(12px); padding: 12px 20px; border-radius: 16px; border: 1px solid var(--accent); display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        #timer-display { font-size: 2rem; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+        .timer-btn { background: var(--accent); border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; cursor: pointer; color: #000; }
+        .nav-header { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; width: 100%; }
+        .nav-btn { background: var(--card); border: 1px solid var(--border); color: var(--accent); font-size: 1.2rem; cursor: pointer; padding: 10px 18px; border-radius: 12px; font-weight: 900; }
+        .main-header-title { font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; text-align: center; flex: 1; outline: none; border-bottom: 1px dashed transparent; }
+        .workout-section { display: none; width: 100%; }
+        .workout-section.active { display: block; }
+        .exercise-card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); position: relative; }
+        .exercise-title { color: var(--accent); font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; line-height: 1.2; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th { text-align: left; color: var(--text-dim); padding-bottom: 8px; font-size: 0.65rem; text-transform: uppercase; }
+        td { padding: 11px 2px; border-top: 1px solid var(--border); font-size: 0.8rem; }
+        .col-series { width: 25%; } .col-carga { width: 25%; } .col-rest { width: 40%; text-align: right; } .col-del { width: 10%; text-align: center; }
+        .rest-group { display: flex; gap: 4px; justify-content: flex-end; }
+        .rest-badge { background: rgba(0, 163, 255, 0.1); color: var(--accent); padding: 5px 6px; border-radius: 6px; cursor: pointer; font-weight: 700; border: 1px solid rgba(0, 163, 255, 0.2); font-size: 0.7rem; }
+        [contenteditable="true"] { padding: 2px 4px; border-radius: 4px; background: rgba(255,255,255,0.03); outline: none; }
+        .exercise-controls { display: flex; gap: 8px; margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 12px; overflow-x: auto; }
+        .btn-action { background: #1c2128; border: 1px solid var(--border); color: var(--text-dim); padding: 6px 10px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
+        .btn-del-block { color: #ff4d4d !important; }
+        .row-delete { color: #ff4d4d; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .save-btn { width: 100%; background: var(--text); color: #000; border: none; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        .add-block-btn { background: transparent; color: var(--accent); border: 2px dashed var(--accent); margin-bottom: 10px; }
+        .btn-new-day { border-color: #4cd964; color: #4cd964; }
+        .json-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn-json { background: #1c2128; color: var(--accent); border: 1px solid var(--border); padding: 12px; border-radius: 12px; font-weight: 800; font-size: 0.75rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="timer-header">
+        <div id="timer-display">00:00</div>
+        <button class="timer-btn" id="main-timer-btn" onclick="toggleMainTimer()">INICIAR</button>
+        <audio id="alarm-sound" src="https://actions.google.com" preload="auto"></audio>
+    </div>
+
+    <div class="nav-header">
+        <button class="nav-btn" onclick="changeDay(-1)">❮</button>
+        <div class="main-header-title" id="day-title" contenteditable="true" onblur="saveDayName()">TREINO SEGUNDA</div>
+        <button class="nav-btn" onclick="changeDay(1)">❯</button>
+    </div>
+
+    <div id="workout-container">
+        <div id="workout-0" class="workout-section active"></div>
+    </div>
+
+    <button class="save-btn add-block-btn" onclick="addNewExercise()">+ ADICIONAR EXERCÍCIO</button>
+    <button class="save-btn add-block-btn btn-new-day" onclick="addNewDay()">+ ADICIONAR NOVO DIA</button>
+    <button class="save-btn add-block-btn btn-del-block" onclick="deleteCurrentDay()">EXCLUIR DIA ATUAL</button>
+    
+    <div class="json-group">
+        <button class="btn-json" onclick="exportarDadosJSON()">📤 EXPORTAR DADOS</button>
+        <button class="btn-json" onclick="document.getElementById('importJsonFile').click()">📥 IMPORTAR DADOS</button>
+        <input type="file" id="importJsonFile" style="display:none" onchange="importarDadosJSON(event)" accept=".json">
+    </div>
+
+    <button class="save-btn" onclick="exportHTML()">💾 EXPORTAR ARQUIVO HTML</button>
+</div>
+
+<script>
+    let currentDayIndex = 0;
+    let daysArray = ["TREINO SEGUNDA"];
+    let timerInterval;
+    let timeLeft = 0;
+
+    window.onload = () => {
+        const savedData = localStorage.getItem('treino_gabriel_v2');
+        const savedDays = localStorage.getItem('treino_gabriel_days');
+        if (savedData && savedDays) {
+            document.getElementById('workout-container').innerHTML = savedData;
+            daysArray = JSON.parse(savedDays);
+        }
+        updateUI();
+        setupListeners();
+        // Registro do Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log("SW error:", err));
+        }
+    };
+
+    function setupListeners() {
+        document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+            el.onblur = () => { saveDayName(); saveState(); };
+        });
+    }
+
+    function saveState() {
+        localStorage.setItem('treino_gabriel_v2', document.getElementById('workout-container').innerHTML);
+        localStorage.setItem('treino_gabriel_days', JSON.stringify(daysArray));
+    }
+
+    function saveDayName() {
+        const titleEl = document.getElementById('day-title');
+        if(titleEl) daysArray[currentDayIndex] = titleEl.innerText;
+        saveState();
+    }
+
+    function updateUI() {
+        const sections = document.querySelectorAll('.workout-section');
+        sections.forEach((s, i) => s.classList.toggle('active', i === currentDayIndex));
+        document.getElementById('day-title').innerText = daysArray[currentDayIndex] || "TREINO";
+    }
+
+    function changeDay(dir) {
+        currentDayIndex = (currentDayIndex + dir + daysArray.length) % daysArray.length;
+        updateUI();
+        window.scrollTo(0,0);
+    }
+
+    function addNewDay() {
+        const name = prompt("Nome do novo dia:", "NOVO TREINO");
+        if (name) {
+            daysArray.push(name.toUpperCase());
+            const container = document.getElementById('workout-container');
+            const newSection = document.createElement('div');
+            newSection.id = `workout-${daysArray.length - 1}`;
+            newSection.className = 'workout-section';
+            container.appendChild(newSection);
+            currentDayIndex = daysArray.length - 1;
+            updateUI();
+            saveState();
+        }
+    }
+
+    function deleteCurrentDay() {
+        if (daysArray.length <= 1) return alert("Mínimo de 1 dia necessário.");
+        if (confirm(`Excluir ${daysArray[currentDayIndex]}?`)) {
+            const sections = document.querySelectorAll('.workout-section');
+            sections[currentDayIndex].remove();
+            daysArray.splice(currentDayIndex, 1);
+            document.querySelectorAll('.workout-section').forEach((s, i) => s.id = `workout-${i}`);
+            currentDayIndex = 0;
+            updateUI();
+            saveState();
+        }
+    }
+
+    function addNewExercise() {
+        const activeSection = document.querySelector('.workout-section.active');
+        const card = document.createElement('div');
+        card.className = 'exercise-card';
+        card.innerHTML = `
+            <div class="exercise-title" contenteditable="true">Novo Exercício</div>
+            <table>
+                <thead><tr><th class="col-series">Séries</th><th class="col-carga">Carga</th><th class="col-rest">Rest</th><th class="col-del"></th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><span contenteditable="true">10 reps</span></td>
+                        <td><span contenteditable="true">0kg</span></td>
+                        <td class="col-rest">
+                            <div class="rest-group">
+                                <span class="rest-badge" onclick="setTimer(60)">60s</span>
+                                <span class="rest-badge" onclick="setTimer(120)">120s</span>
+                            </div>
+                        </td>
+                        <td class="col-del" onclick="deleteRow(this)"><span class="row-delete">×</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="exercise-controls">
+                <button class="btn-action" onclick="addRow(this)">+ LINHA</button>
+                <button class="btn-action" onclick="moveBlock(this, -1)">↑</button>
+                <button class="btn-action" onclick="moveBlock(this, 1)">↓</button>
+                <button class="btn-action btn-del-block" onclick="deleteBlock(this)">EXCLUIR</button>
+            </div>`;
+        activeSection.appendChild(card);
+        setupListeners();
+        saveState();
+    }
+
+    function addRow(btn) {
+        const tbody = btn.closest('.exercise-card').querySelector('tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><span contenteditable="true">10 reps</span></td><td><span contenteditable="true">0kg</span></td><td class="col-rest"><div class="rest-group"><span class="rest-badge" onclick="setTimer(60)">60s</span><span class="rest-badge" onclick="setTimer(120)">120s</span></div></td><td class="col-del" onclick="deleteRow(this)"><span class="row-delete">×</span></td>`;
+        tbody.appendChild(tr);
+        saveState();
+    }
+
+    function deleteRow(el) { if(confirm("Excluir?")) { el.closest('tr').remove(); saveState(); } }
+    function deleteBlock(btn) { if(confirm("Excluir exercício?")) { btn.closest('.exercise-card').remove(); saveState(); } }
+    
+    function moveBlock(btn, dir) {
+        const card = btn.closest('.exercise-card');
+        if (dir === -1 && card.previousElementSibling) card.parentNode.insertBefore(card, card.previousElementSibling);
+        else if (dir === 1 && card.nextElementSibling) card.parentNode.insertBefore(card.nextElementSibling, card);
+        saveState();
+    }
+
+    function setTimer(seconds) {
+        clearInterval(timerInterval);
+        timeLeft = seconds;
+        updateTimerDisplay();
+        document.getElementById('main-timer-btn').innerText = "PARAR";
+        const audio = document.getElementById('alarm-sound');
+        audio.play().then(() => audio.pause()); // Unlock audio
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                audio.play();
+                document.getElementById('main-timer-btn').innerText = "INICIAR";
+            }
+        }, 1000);
+    }
+
+    function toggleMainTimer() {
+        if(timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timeLeft = 0;
+            updateTimerDisplay();
+            document.getElementById('main-timer-btn').innerText = "INICIAR";
+        } else { setTimer(60); }
+    }
+
+    function updateTimerDisplay() {
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        document.getElementById('timer-display').innerText = `${m}:${s}`;
+    }
+
+    function exportarDadosJSON() {
+        const dados = { html: document.getElementById('workout-container').innerHTML, dias: JSON.stringify(daysArray) };
+        const blob = new Blob([JSON.stringify(dados)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'treino_gabriel.json';
+        a.click();
+    }
+
+    function importarDadosJSON(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const d = JSON.parse(e.target.result);
+            localStorage.setItem('treino_gabriel_v2', d.html);
+            localStorage.setItem('treino_gabriel_days', d.dias);
+            location.reload();
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+
+    function exportHTML() {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(["<!DOCTYPE html>\n"+document.documentElement.outerHTML], {type:'text/html'}));
+        a.download = 'treino.html';
+        a.click();
+    }
+</script>
+</body>
+</html>
